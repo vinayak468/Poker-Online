@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker</title>
+    <link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div class="app" id="home-screen"><div class="glow glow-a"></div><div class="glow glow-b"></div><div class="home-inner">
+    <header>
+        <h1>♠ Poker</h1>
+        <div id="room-join-label">Choose a mode</div>
+    </header>
+    <main class="home-main">
+        <div class="mode-card" id="mode-ai">
+            <h2>Start Game with AI</h2>
+            <p>Jump straight into a table filled with bots.</p>
+            <button id="ai-button">Start Game with AI</button>
+        </div>
+
+        <div class="mode-card" id="mode-room">
+            <h2>Start Game with Friends</h2>
+            <p>Create a room or join a friend's with their code. Empty seats fill with bots until real players join.</p>
+            <input type="text" id="room-name-input" placeholder="Your name" maxlength="20" autocomplete="off">
+            <input type="text" id="room-code-input" placeholder="Room code (leave blank to create)" maxlength="10" autocomplete="off">
+            <button id="room-button">Start Game with Friends</button>
+        </div>
+
+        <p id="join-error" style="color:#f66; display:none;"></p>
+    </main>
+    </div>
+</div>
+
+<!-- GAME TABLE (hidden until joined) -->
+<div class="app" id="game-screen" style="display:none;">
+    <header>
+        <h1>♠ Poker</h1>
+        <div id="room">4 Player Table</div>
+    </header>
+
+    <main>
+        <section class="table">
+            <div class="seat top">
+                <div class="avatar">🤖</div>
+                <strong id="player-top">Waiting...</strong>
+                <span id="chips-top">--</span>
+                <div class="seat-cards" id="cards-top"></div>
+            </div>
+
+            <div class="seat left">
+                <div class="avatar">🤖</div>
+                <strong id="player-left">Waiting...</strong>
+                <span id="chips-left">--</span>
+                <div class="seat-cards" id="cards-left"></div>
+            </div>
+
+            <div class="poker-center">
+                <div class="pot">Pot: <span id="pot">0</span></div>
+                <div class="community-cards">
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                </div>
+            </div>
+
+            <div class="seat right">
+                <div class="avatar">🤖</div>
+                <strong id="player-right">Waiting...</strong>
+                <span id="chips-right">--</span>
+                <div class="seat-cards" id="cards-right"></div>
+            </div>
+
+            <div class="south-area">
+                <div class="my-cards" id="my-cards"></div>
+                <div class="seat bottom">
+                    <div class="avatar">👤</div>
+                    <strong id="player-bottom">You</strong>
+                    <span id="chips-bottom">1000 chips</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls">
+            <button class="fold">FOLD</button>
+            <button class="check">CHECK</button>
+            <button class="raise">RAISE</button>
+        </section>
+    </main>
+
+    <div id="showdown-banner" style="display:none;"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
