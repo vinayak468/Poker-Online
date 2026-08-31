@@ -1,0 +1,51 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; width: 100%; min-height: 100%; }
+body { background: #101010; color: white; font-family: Arial, sans-serif; }
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+header { height: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: #181818; }
+header h1 { margin: 0; font-size: 24px; }
+#room { color: #aaa; font-size: 14px; }
+main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 35px 15px 25px; }
+.table { position: relative; width: min(850px, 92vw); height: min(520px, 60vh); min-height: 400px; background: radial-gradient(ellipse at center, #19724a 0%, #125b3a 70%, #0d452d 100%); border: 14px solid #51331f; border-radius: 50%; box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 0 35px rgba(0,0,0,.35); }
+.poker-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.pot { margin-bottom: 14px; font-size: 18px; font-weight: bold; }
+.community-cards { display: flex; justify-content: center; gap: 7px; }
+.card, .hole-card { position: relative; display: flex; align-items: center; justify-content: center; background: #f7f7f7; color: #111; border-radius: 7px; border: 1px solid #ccc; box-shadow: 0 3px 7px rgba(0,0,0,.45), inset 0 0 0 2px white; font-family: Georgia, "Times New Roman", serif; font-weight: bold; }
+.card { width: 54px; height: 76px; font-size: 25px; }
+.card.red, .hole-card.red { color: #c21f39; }
+.hidden-card { background: repeating-linear-gradient(45deg, #172b4d, #172b4d 5px, #203b69 5px, #203b69 10px); color: white; border: 2px solid #eee; box-shadow: 0 3px 7px rgba(0,0,0,.5), inset 0 0 0 3px #172b4d; }
+.seat { position: absolute; width: 125px; padding: 9px 7px; background: linear-gradient(#292929, #181818); border: 1px solid #555; border-radius: 12px; text-align: center; box-shadow: 0 5px 12px rgba(0,0,0,.45); z-index: 5; }
+.avatar { font-size: 30px; line-height: 32px; }
+.seat strong { display: block; margin-top: 3px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat span { display: block; margin-top: 4px; color: #ffd166; font-size: 12px; }
+.top { top: -50px; left: 50%; transform: translateX(-50%); }
+.left { left: -62px; top: 50%; transform: translateY(-50%); }
+.right { right: -62px; top: 50%; transform: translateY(-50%); }
+.south-area { position: absolute; left: 50%; bottom: -120px; transform: translateX(-50%); width: 190px; height: 120px; display: flex; justify-content: center; pointer-events: none; z-index: 10; }
+.my-cards { position: absolute; top: -82px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 20; }
+.hole-card { width: 57px; height: 80px; font-size: 26px; transform: rotate(-3deg); }
+.hole-card:nth-child(2) { transform: rotate(3deg); }
+.bottom { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); }
+.controls { position: relative; z-index: 50; display: flex; justify-content: center; align-items: center; gap: 12px; width: 100%; margin-top: 155px; padding-bottom: 10px; }
+button { min-width: 95px; padding: 14px 20px; border: 0; border-radius: 9px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 3px 7px rgba(0,0,0,.35); }
+.fold { background: #9b2226; }
+.check { background: #277da1; }
+.raise { background: #e09f3e; color: #111; }
+button:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+@media (max-width: 600px) {
+    main { padding-top: 55px; }
+    .table { width: 94vw; height: 390px; min-height: 390px; border-width: 10px; }
+    .seat { width: 100px; padding: 6px; }
+    .avatar { font-size: 25px; }
+    .seat strong { font-size: 11px; }
+    .seat span { font-size: 10px; }
+    .top { top: -45px; }
+    .left { left: -43px; }
+    .right { right: -43px; }
+    .card { width: 42px; height: 61px; font-size: 20px; }
+    .hole-card { width: 50px; height: 70px; font-size: 23px; }
+    .south-area { bottom: -120px; height: 120px; }
+    .my-cards { top: -75px; }
+    .controls { margin-top: 150px; gap: 7px; }
+    button { min-width: 82px; padding: 12px 10px; font-size: 12px; }
+}

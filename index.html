@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+    <header>
+        <h1>♠ Poker</h1>
+        <div id="room">4 Player Table</div>
+    </header>
+    <main>
+        <section class="table">
+            <div class="seat top">
+                <div class="avatar">🤖</div>
+                <strong id="player-top">Waiting...</strong>
+                <span id="chips-top">--</span>
+            </div>
+            <div class="seat left">
+                <div class="avatar">🤖</div>
+                <strong id="player-left">Waiting...</strong>
+                <span id="chips-left">--</span>
+            </div>
+            <div class="poker-center">
+                <div class="pot">Pot: <span id="pot">0</span></div>
+                <div class="community-cards">
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                    <div class="card hidden-card">?</div>
+                </div>
+            </div>
+            <div class="seat right">
+                <div class="avatar">🤖</div>
+                <strong id="player-right">Waiting...</strong>
+                <span id="chips-right">--</span>
+            </div>
+            <div class="south-area">
+                <div class="my-cards" id="my-cards"></div>
+                <div class="seat bottom">
+                    <div class="avatar">👤</div>
+                    <strong id="player-bottom">You</strong>
+                    <span id="chips-bottom">1000 chips</span>
+                </div>
+            </div>
+        </section>
+        <section class="controls">
+            <button class="fold">FOLD</button>
+            <button class="check">CHECK</button>
+            <button class="raise">RAISE</button>
+        </section>
+    </main>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
