@@ -9,8 +9,12 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const BOT_ACTION_DELAY_MS = 1000;
+const RUNOUT_DELAY_MS = 1200;
+const SHOWDOWN_DISPLAY_MS = 4500;
+const TURN_TIMEOUT_MS = 25000; // Auto-action if player is inactive
 
-// roomCode -> { game: PokerGame }
+// roomCode -> { game: PokerGame, turnTimer: Timeout|null, runoutRunning: boolean }
 const rooms = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -34,7 +38,12 @@ function getOrCreateRoom(roomCode) {
         code = makeRoomCode();
     }
 
-    const room = { game: new PokerGame() };
+    const room = {
+        game: new PokerGame(),
+        turnTimer: null,
+        runoutRunning: false,
+        handEnding: false
+    };
     rooms.set(code, room);
     return { code, room };
 }
@@ -51,84 +60,166 @@ function publicGame(game) {
             folded: player.folded,
             allIn: player.allIn,
             currentBet: player.currentBet,
+            totalBet: player.totalBet,
+            lastAction: player.lastAction,
             hand: player.bot ? [null, null] : player.hand
         })),
         pot: game.game.pot,
         dealer: game.game.dealer,
+        smallBlindSeat: game.game.smallBlindSeat,
+        bigBlindSeat: game.game.bigBlindSeat,
         currentPlayer: game.game.currentPlayer,
         streetBet: game.game.streetBet,
-        minRaise: game.game.minRaise
+        minRaise: game.game.minRaise,
+        lastAction: game.game.lastAction,
+        actionLog: game.game.actionLog || [],
+        handCount: game.handCount
     };
 }
 
 function broadcastGame(code, room) {
+    if (!rooms.has(code)) return;
     io.to(code).emit("gameUpdate", publicGame(room.game));
 }
 
-function finishHand(code, room) {
-    const game = room.game;
+function clearTurnTimer(room) {
+    if (room.turnTimer) {
+        clearTimeout(room.turnTimer);
+        room.turnTimer = null;
+    }
+}
 
-    if (game.game.phase !== "showdown") {
+function resetTurnTimer(code, room) {
+    clearTurnTimer(room);
+
+    const game = room.game;
+    if (game.game.phase === "waiting" || game.game.phase === "showdown" || room.handEnding) {
         return;
     }
 
-    if (game.game.pot > 0) {
-        const result = game.showdown();
+    const current = game.current();
+    if (!current || current.bot) {
+        return;
+    }
 
-        if (result) {
-            io.to(code).emit("showdown", result);
+    // Auto-check or auto-fold for inactive human
+    room.turnTimer = setTimeout(() => {
+        if (!rooms.has(code)) return;
+        const cur = game.current();
+        if (!cur || cur.id !== current.id) return;
+
+        const toCall = game.game.streetBet - cur.currentBet;
+        if (toCall === 0) {
+            game.check(cur.id);
+        } else {
+            game.fold(cur.id);
         }
+
+        handleGameProgression(code, room);
+    }, TURN_TIMEOUT_MS);
+}
+
+function finishHand(code, room, showdownResult = null) {
+    const game = room.game;
+    if (room.handEnding) return;
+    room.handEnding = true;
+    clearTurnTimer(room);
+
+    let result = showdownResult;
+    if (!result && game.game.phase === "showdown") {
+        result = game.showdown();
+    }
+
+    if (result) {
+        io.to(code).emit("showdown", result);
     }
 
     broadcastGame(code, room);
 
     setTimeout(() => {
         if (!rooms.has(code)) return;
+        room.handEnding = false;
+        room.runoutRunning = false;
 
         if (game.humans.size > 0) {
             game.startHand();
             broadcastGame(code, room);
-            runBots(code, room);
+            handleGameProgression(code, room);
         } else {
             game.game.phase = "waiting";
             broadcastGame(code, room);
         }
-    }, 5000);
+    }, SHOWDOWN_DISPLAY_MS);
 }
 
-const BOT_ACTION_DELAY_MS = 1200;
+function runAllInRunout(code, room) {
+    if (room.runoutRunning || room.handEnding) return;
+    room.runoutRunning = true;
+    clearTurnTimer(room);
 
-// Runs ONE bot action at a time, broadcasting after each, with a short
-// delay in between so players can actually see each street/action land
-// instead of the whole hand resolving instantly.
-function runBots(code, room, safety = 20) {
-    const game = room.game;
-
-    if (!rooms.has(code)) {
-        return;
-    }
-
-    if (
-        game.game.phase === "waiting" ||
-        game.game.phase === "showdown" ||
-        !game.current()?.bot ||
-        safety <= 0
-    ) {
-        broadcastGame(code, room);
+    function stepRunout() {
+        if (!rooms.has(code) || room.handEnding) return;
+        const game = room.game;
 
         if (game.game.phase === "showdown") {
-            finishHand(code, room);
+            const result = game.showdown();
+            finishHand(code, room, result);
+            return;
         }
 
+        const showdownRes = game.nextStreet();
+        broadcastGame(code, room);
+
+        if (game.game.phase === "showdown" || showdownRes) {
+            finishHand(code, room, showdownRes);
+        } else {
+            setTimeout(stepRunout, RUNOUT_DELAY_MS);
+        }
+    }
+
+    setTimeout(stepRunout, RUNOUT_DELAY_MS);
+}
+
+function handleGameProgression(code, room) {
+    if (!rooms.has(code) || room.handEnding) return;
+    const game = room.game;
+
+    if (game.game.phase === "showdown") {
+        finishHand(code, room);
         return;
     }
 
-    game.botAction();
-    broadcastGame(code, room);
+    if (game.game.phase === "waiting") {
+        broadcastGame(code, room);
+        return;
+    }
 
-    setTimeout(() => {
-        runBots(code, room, safety - 1);
-    }, BOT_ACTION_DELAY_MS);
+    if (game.game.allInRunout || game.actionablePlayers().length <= 1 && game.roundComplete()) {
+        runAllInRunout(code, room);
+        return;
+    }
+
+    const current = game.current();
+    if (current && current.bot) {
+        clearTurnTimer(room);
+        setTimeout(() => {
+            if (!rooms.has(code) || room.handEnding) return;
+            const cur = game.current();
+            if (cur && cur.bot && game.game.phase !== "showdown") {
+                const actResult = game.botAction();
+                if (actResult && typeof actResult === "object") {
+                    // Hand concluded via fold
+                    finishHand(code, room, actResult);
+                    return;
+                }
+                broadcastGame(code, room);
+                handleGameProgression(code, room);
+            }
+        }, BOT_ACTION_DELAY_MS);
+    } else {
+        broadcastGame(code, room);
+        resetTurnTimer(code, room);
+    }
 }
 
 io.on("connection", socket => {
@@ -138,10 +229,9 @@ io.on("connection", socket => {
         const name = typeof data === "string" ? data : data?.name;
         const requestedCode = typeof data === "object" ? data?.roomCode : null;
 
-        const playerName =
-            typeof name === "string" && name.trim()
-                ? name.trim().slice(0, 20)
-                : "Player";
+        const playerName = typeof name === "string" && name.trim()
+            ? name.trim().slice(0, 20)
+            : "Player";
 
         const { code, room } = getOrCreateRoom(requestedCode);
         const game = room.game;
@@ -156,7 +246,11 @@ io.on("connection", socket => {
         socket.join(code);
         socket.data.roomCode = code;
 
-        socket.emit("joinSuccess", { roomCode: code });
+        socket.emit("joinSuccess", {
+            roomCode: code,
+            playerId: socket.id,
+            playerName: playerName
+        });
 
         console.log(`${playerName} joined room ${code}`);
 
@@ -165,14 +259,13 @@ io.on("connection", socket => {
         }
 
         broadcastGame(code, room);
-        runBots(code, room);
+        handleGameProgression(code, room);
     });
 
     socket.on("action", data => {
         const code = socket.data.roomCode;
         const room = code && rooms.get(code);
-
-        if (!room) return;
+        if (!room || room.handEnding) return;
 
         const game = room.game;
         const player = game.current();
@@ -181,27 +274,28 @@ io.on("connection", socket => {
             return;
         }
 
-        let success = false;
+        let result = false;
 
         switch (data?.action) {
             case "fold":
-                success = game.fold(socket.id);
+                result = game.fold(socket.id);
                 break;
-
             case "check":
-                success = game.check(socket.id);
+                result = game.check(socket.id);
                 break;
-
             case "call":
-                success = game.call(socket.id);
+                result = game.call(socket.id);
                 break;
-
             case "raise":
-                success = game.raise(socket.id);
+                result = game.raise(socket.id, data?.amount);
                 break;
         }
 
-        if (!success) {
+        if (!result) return;
+
+        if (typeof result === "object") {
+            // Fold winner
+            finishHand(code, room, result);
             return;
         }
 
@@ -211,7 +305,16 @@ io.on("connection", socket => {
         }
 
         broadcastGame(code, room);
-        runBots(code, room);
+        handleGameProgression(code, room);
+    });
+
+    socket.on("rebuy", () => {
+        const code = socket.data.roomCode;
+        const room = code && rooms.get(code);
+        if (!room) return;
+
+        room.game.rebuy(socket.id, 1000);
+        broadcastGame(code, room);
     });
 
     socket.on("disconnect", () => {
@@ -219,26 +322,32 @@ io.on("connection", socket => {
 
         const code = socket.data.roomCode;
         const room = code && rooms.get(code);
-
         if (!room) return;
 
         const game = room.game;
-        game.removeHuman(socket.id);
+        const isCurrentTurn = game.current()?.id === socket.id;
 
-        if (
-            game.game.phase !== "showdown" &&
-            game.activePlayers().filter(p => !p.bot).length === 0
-        ) {
-            game.game.phase = "waiting";
-            game.game.players = [];
-            game.game.communityCards = [];
-            game.game.pot = 0;
+        if (isCurrentTurn && game.game.phase !== "showdown" && game.game.phase !== "waiting") {
+            game.fold(socket.id);
         }
 
+        game.removeHuman(socket.id);
+
         if (game.humans.size === 0) {
+            clearTurnTimer(room);
             rooms.delete(code);
         } else {
+            if (
+                game.game.phase !== "showdown" &&
+                game.activePlayers().filter(p => !p.bot).length === 0
+            ) {
+                game.game.phase = "waiting";
+                game.game.players = [];
+                game.game.communityCards = [];
+                game.game.pot = 0;
+            }
             broadcastGame(code, room);
+            handleGameProgression(code, room);
         }
     });
 });
