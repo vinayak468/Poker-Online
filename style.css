@@ -1305,3 +1305,54 @@ button:disabled, input:disabled {
         right: 12px;
     }
 }
+
+/* ========================================
+   AURA BACKGROUND - ANIMATED GRADIENT BLOBS
+   ======================================== */
+.aura-container {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.aura-blob {
+    position: absolute;
+    width: 40vw;
+    height: 40vw;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: auradrift 25s ease-in-out infinite;
+}
+
+.aura-blob:nth-child(1) {
+    background: #6366f1;
+    top: -15%;
+    left: -10%;
+    animation-delay: 0s;
+}
+
+.aura-blob:nth-child(2) {
+    background: #ec4899;
+    bottom: -15%;
+    right: -10%;
+    animation-delay: -8s;
+}
+
+.aura-blob:nth-child(3) {
+    background: #22d3ee;
+    top: 35%;
+    left: 25%;
+    animation-delay: -16s;
+    width: 35vw;
+    height: 35vw;
+}
+
+@keyframes auradrift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(12%, 8%) scale(1.1); }
+    50% { transform: translate(-8%, 15%) scale(0.95); }
+    75% { transform: translate(5%, -10%) scale(1.05); }
+}
